@@ -8,8 +8,8 @@
 <th>RGB Detection Tracking</th>
 </tr>
 <tr>
-<td><img src="media/enhanced_bev_smooth.gif" width="400"/></td>
-<td><img src="media/smooth_tracking.gif" width="400"/></td>
+<td><img src="media/gifs/enhanced_bev_smooth.gif" width="400"/></td>
+<td><img src="media/gifs/smooth_tracking.gif" width="400"/></td>
 </tr>
 </table>
 
