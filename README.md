@@ -1,85 +1,26 @@
 # Computer Vision Challenge: Ego-Trajectory & BEV Mapping
 
-## Overview
-Complete solution for ego-vehicle trajectory estimation and multi-object tracking in Bird's Eye View using monocular RGB+depth data from a golf cart platform.
-
 ## Method
 
-### Part A: Ego-Trajectory Estimation (solution/ego_trajectory.py)
-- **Approach**: Traffic light as fixed world reference point
-- **3D Extraction**: Sample 11x11 patch around traffic light center in XYZ depth data
-- **Motion Estimation**: Track traffic light movement, invert for ego motion
-- **Smoothing**: Combined approach - moving average + Savitzky-Golay filter + spline interpolation
-- **Output**: trajectory.png/mp4 showing 100m path
+### Ego-Trajectory Estimation
+We treat the traffic light as a fixed world reference point. By tracking its apparent motion in the camera frame, we can infer the inverse ego-vehicle motion. The 3D position of the traffic light is extracted from depth data using an 11x11 patch averaging technique to reduce noise. The trajectory is then smoothed using a combined approach: moving average filter followed by Savitzky-Golay filter and cubic spline interpolation for a physically plausible path.
 
-### Part B: Multi-Object Tracking & BEV Mapping
+### Multi-Object BEV Tracking
+Object detection uses a custom-trained YOLOv8m model on 5 classes specific to this dataset. ByteTrack maintains consistent object IDs across frames. Each detected object's 3D position is extracted from the XYZ depth data and transformed to world coordinates relative to the traffic light origin. All trajectories undergo the same smoothing pipeline as the ego vehicle to ensure coherent motion patterns. Class-specific confidence thresholds were empirically tuned: barriers (0.8) to reduce false positives, pedestrians (0.62) to prevent backward walking artifacts, and golf cart/lights (0.1) for reliable detection.
 
-#### enhanced_bev_smooth.py - Main BEV Solution
-- **Detection**: Custom YOLOv8m model trained on dataset-specific classes
-  - Training: 5 classes (golf_cart, pedestrian, traffic_barrier, green/red lights)
-  - Model path: `training_data/runs/driving_detection/yolov8m_driving/weights/best.pt`
-- **Tracking**: ByteTrack for persistent IDs across frames
-- **3D Projection**: Convert detections to world coordinates using XYZ depth
-- **Trajectory Smoothing**: Same combined method as ego (applied to all objects)
-- **Confidence Thresholds** (optimized through testing):
-  - Traffic barriers: 0.8 (high to reduce false positives)
-  - Pedestrians: 0.62 (prevents backward walking artifacts)
-  - Golf cart/lights: 0.1 (reliable detection)
-- **GPU Acceleration**: Runs on NVIDIA RTX 5070 Ti
+## Assumptions
 
-#### smooth_tracking.py - Enhanced Detection Visualization
-- **Real-time Enhancements**:
-  - EMA box smoothing (α=0.35)
-  - 5-frame confidence windowing
-  - Hysteresis (2 frames appear, 5 disappear)
-  - Range-aware threshold adjustment
-- **Output**: RGB video with stable bounding boxes
-
-#### adaptive_detection.py - Early Prototype
-- Initial prototype for class-specific thresholds
-- Basic temporal smoothing (confidence decay)
-- No tracking (frame-by-frame detection only)
-- Superseded by smooth_tracking.py
+1. **Traffic light stationarity** - The traffic light remains fixed throughout the sequence, serving as our world origin
+2. **Flat ground plane** - All objects move on a planar surface, allowing 2D trajectory projection
+3. **Depth reliability** - XYZ depth data is accurate within ±10%, handled through patch averaging
+4. **Consistent camera calibration** - Intrinsic parameters remain constant across all frames
+5. **Object persistence** - Tracked objects maintain consistent visual appearance for ByteTrack
 
 ## Results
 
-**Ego Trajectory**:
-- Start: (-35.53, -15.28) meters
-- End: (-8.22, 0.72) meters
-- Total: ~100m traveled
+The ego vehicle travels approximately 100m, starting 35m behind the traffic light and stopping 8m before it. The trajectory shows smooth deceleration approaching the intersection. Eight objects were successfully tracked: one golf cart maintaining consistent forward motion, two pedestrians crossing the scene, multiple traffic barriers as static landmarks, and traffic lights with correct state changes (red/green). All trajectories exhibit smooth, physically plausible motion after filtering. Processing achieves 1.38 FPS on RTX 5070 Ti with full trajectory smoothing enabled.
 
-**Object Tracking**:
-- 8 unique objects tracked with smooth paths
-- Stable IDs maintained throughout sequence
-- Performance: 1.38 FPS with full processing
-
-**Output Files**:
-- `enhanced_bev_smooth.mp4` - Complete animated BEV with all trajectories
-- `enhanced_bev_smooth.png` - Static BEV visualization
-- `smooth_tracking.mp4` - RGB video with enhanced tracking overlays
-- `adaptive_detections.mp4` - Basic detection visualization
-- `trajectory.mp4/png` - Ego-only trajectory
-
-## Key Assumptions
-1. Traffic light remains stationary (world reference)
-2. Flat ground plane approximation
-3. Constant camera intrinsics
-4. Depth accuracy ±10% tolerance
-5. Objects maintain consistent appearance
-
-## Usage
-```bash
-# Main BEV with all objects
-python enhanced_bev_smooth.py
-
-# Enhanced tracking visualization
-python smooth_tracking.py
-
-# Basic detection (no tracking)
-python adaptive_detection.py
-
-# Ego trajectory only (in solution/)
-python solution/ego_trajectory.py
-```
-
-**Dependencies**: numpy, pandas, matplotlib, opencv-python, ultralytics, scipy, torch
+**Output Files:**
+- `trajectory.png/mp4` - Ego-only trajectory in world frame
+- `enhanced_bev_smooth.png/mp4` - Complete BEV with all tracked objects
+- `smooth_tracking.mp4` - RGB video with stabilized detections
