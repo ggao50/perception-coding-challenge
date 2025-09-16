@@ -1,5 +1,18 @@
 # Computer Vision Challenge: Ego-Trajectory & BEV Mapping
 
+## Output Visualizations
+
+<table>
+<tr>
+<th>Bird's Eye View (BEV)</th>
+<th>RGB Detection Tracking</th>
+</tr>
+<tr>
+<td><img src="enhanced_bev_smooth.gif" width="400"/></td>
+<td><img src="smooth_tracking.gif" width="400"/></td>
+</tr>
+</table>
+
 ## Method
 
 ### Ego-Trajectory Estimation
@@ -19,8 +32,3 @@ Object detection uses a custom-trained YOLOv8m model on 5 classes specific to th
 ## Results
 
 The ego vehicle travels approximately 100m, starting 35m behind the traffic light and stopping 8m before it. The trajectory shows smooth deceleration approaching the intersection. Eight objects were successfully tracked: one golf cart maintaining consistent forward motion, two pedestrians crossing the scene, multiple traffic barriers as static landmarks, and traffic lights with correct state changes (red/green). All trajectories exhibit smooth, physically plausible motion after filtering. Processing achieves 1.38 FPS on RTX 5070 Ti with full trajectory smoothing enabled.
-
-**Output Files:**
-- `trajectory.png/mp4` - Ego-only trajectory in world frame
-- `enhanced_bev_smooth.png/mp4` - Complete BEV with all tracked objects
-- `smooth_tracking.mp4` - RGB video with stabilized detections
