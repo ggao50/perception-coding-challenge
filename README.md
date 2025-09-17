@@ -1,6 +1,8 @@
-# Computer Vision Challenge: Ego-Trajectory & BEV Mapping
+# Wisconsin Autonomous Vehicle Team - Perception Challenge Submission
 
-## Output Visualizations
+## Solution Overview
+
+Hey team! Here's my submission for the perception challenge. I focused on creating a robust tracking system that could handle the noisy depth data while maintaining smooth, realistic trajectories.
 
 <table>
 <tr>
@@ -13,22 +15,42 @@
 </tr>
 </table>
 
-## Method
+## My Implementation
 
 ### Ego-Trajectory Estimation
-We treat the traffic light as a fixed world reference point. By tracking its apparent motion in the camera frame, we can infer the inverse ego-vehicle motion. The 3D position of the traffic light is extracted from depth data using an 11x11 patch averaging technique to reduce noise. The trajectory is then smoothed using a combined approach: moving average filter followed by Savitzky-Golay filter and cubic spline interpolation for a physically plausible path.
+Following the provided trajectory extraction framework with the traffic light as the world reference, I focused on improving the robustness of the depth measurements. I implemented an 11x11 patch averaging technique around the traffic light detection to handle the inherent noise in the XYZ data.
 
-### Multi-Object BEV Tracking
-Object detection uses a custom-trained YOLOv8m model on 5 classes specific to this dataset. ByteTrack maintains consistent object IDs across frames. Each detected object's 3D position is extracted from the XYZ depth data and transformed to world coordinates relative to the traffic light origin. All trajectories undergo the same smoothing pipeline as the ego vehicle to ensure coherent motion patterns. Class-specific confidence thresholds were empirically tuned: barriers (0.8) to reduce false positives, pedestrians (0.62) to prevent backward walking artifacts, and golf cart/lights (0.1) for reliable detection.
+The raw trajectory was pretty jittery, so I developed a multi-stage smoothing pipeline:
+- Moving average filter to knock down the high-frequency noise
+- Savitzky-Golay filter to preserve the acceleration profiles
+- Cubic spline interpolation for the final smooth, physically realistic path
 
-## Assumptions
+### Multi-Object Tracking in BEV
+I trained a custom YOLOv8m model on 5 specific classes for this dataset - it took a few iterations to get the class balance right. For tracking, I integrated ByteTrack which handled the ID consistency really well, even when pedestrians partially occluded each other.
 
-1. **Traffic light stationarity** - The traffic light remains fixed throughout the sequence, serving as our world origin
-2. **Flat ground plane** - All objects move on a planar surface, allowing 2D trajectory projection
-3. **Depth reliability** - XYZ depth data is accurate within ±10%, handled through patch averaging
-4. **Consistent camera calibration** - Intrinsic parameters remain constant across all frames
-5. **Object persistence** - Tracked objects maintain consistent visual appearance for ByteTrack
+Each detected object gets its 3D position extracted from the depth data and transformed into the world coordinate system. I applied the same smoothing pipeline I developed for ego-motion to all tracked objects - this ensures everything moves coherently in the BEV visualization.
+
+Through experimentation, I found that different classes needed different confidence thresholds:
+- Barriers: 0.8 (high to avoid false positives)
+- Pedestrians: 0.62 (this specific value fixed an issue where they appeared to walk backwards)
+- Golf cart/lights: 0.1 (lower threshold needed for consistent detection)
+
+## Working Assumptions
+
+1. **Static traffic light** - Critical since it's our world reference
+2. **Planar ground** - Reasonable for this parking lot environment
+3. **Depth accuracy ±10%** - My patch averaging helps compensate
+4. **Fixed camera calibration** - No changes during recording
+5. **Consistent object appearance** - Required for ByteTrack to maintain IDs
 
 ## Results
 
-The ego vehicle travels approximately 100m, starting 35m behind the traffic light and stopping 8m before it. The trajectory shows smooth deceleration approaching the intersection. Eight objects were successfully tracked: one golf cart maintaining consistent forward motion, two pedestrians crossing the scene, multiple traffic barriers as static landmarks, and traffic lights with correct state changes (red/green). All trajectories exhibit smooth, physically plausible motion after filtering. Processing achieves 1.38 FPS on RTX 5070 Ti with full trajectory smoothing enabled.
+The system successfully tracks the ego vehicle over ~100m, from 35m behind the traffic light to stopping 8m before it. The smooth deceleration profile matches expected driving behavior.
+
+I tracked eight objects total:
+- 1 golf cart with consistent forward motion
+- 2 pedestrians crossing at different times
+- Multiple traffic barriers as static landmarks
+- Traffic lights with accurate red/green state detection
+
+Performance runs at 1.38 FPS on my RTX 5070 Ti with full smoothing enabled. There's definitely room for optimization if real-time is needed, but I prioritized accuracy and smoothness for this challenge.
